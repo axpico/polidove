@@ -4,12 +4,13 @@ import "./style.css";
 import { fetchAvailableDates, getOccupationsForDate } from "./api.ts";
 import { flattenLessons, formatDate } from "./lessons.ts";
 import type { Lesson } from "./lessons.ts";
-import { searchLessons, matchRanges, mergeRanges, normalize } from "./search.ts";
+import { searchLessons, normalize } from "./search.ts";
 import { renderTicket, updateTicketStatus } from "./ticket.ts";
 import { maybeRequestGyroPermission } from "./tilt.ts";
 import { attachKonamiEgg } from "./konami.ts";
 import { decodeShareParams } from "./share.ts";
 import { getLang, setLang, t } from "./i18n.ts";
+import { createResultsList } from "./results-list.ts";
 
 const searchInput = document.querySelector<HTMLInputElement>("#search-input")!;
 const searchClearBtn = document.querySelector<HTMLButtonElement>("#search-clear-btn")!;
@@ -39,7 +40,11 @@ const lessonsByDate = new Map<string, Lesson[]>();
 const generatedAtByDate = new Map<string, string>();
 let currentQuery = "";
 let currentLesson: Lesson | null = null;
-let activeIndex = -1;
+
+const results = createResultsList(resultsList, searchInput, (lesson) => {
+  maybeRequestGyroPermission();
+  showTicket(lesson);
+});
 
 // Fetches + flattens one date's occupancy data and caches it in lessonsByDate/generatedAtByDate.
 async function loadDate(date: string, forceRefresh = false): Promise<Lesson[]> {
@@ -83,7 +88,7 @@ function clearTicket() {
 
 function showTicket(lesson: Lesson) {
   currentLesson = lesson;
-  closeResultsList();
+  results.close();
   hideMessage();
   renderTicket(ticketContainer, lesson);
   ticketContainer.scrollIntoView({ behavior: "smooth", block: "nearest" });
@@ -107,90 +112,10 @@ function applyStaticTexts() {
   langToggleBtn.setAttribute("aria-label", t().langToggleTitle);
 }
 
-function appendHighlighted(el: HTMLElement, text: string, query: string) {
-  const ranges = mergeRanges(matchRanges(text, query));
-  if (ranges.length === 0) {
-    el.append(text);
-    return;
-  }
-  let cursor = 0;
-  for (const [start, end] of ranges) {
-    if (start > cursor) el.append(text.slice(cursor, start));
-    const mark = document.createElement("mark");
-    mark.textContent = text.slice(start, end);
-    el.append(mark);
-    cursor = end;
-  }
-  if (cursor < text.length) el.append(text.slice(cursor));
-}
-
-function closeResultsList() {
-  resultsList.hidden = true;
-  resultsList.classList.remove("results-list--open");
-  resultsList.innerHTML = "";
-  activeIndex = -1;
-  searchInput.setAttribute("aria-expanded", "false");
-  searchInput.removeAttribute("aria-activedescendant");
-}
-
-function getOptionEls(): HTMLLIElement[] {
-  return Array.from(resultsList.querySelectorAll<HTMLLIElement>(".results-list__item"));
-}
-
-function setActiveIndex(index: number) {
-  const options = getOptionEls();
-  if (options.length === 0) return;
-  activeIndex = ((index % options.length) + options.length) % options.length;
-  options.forEach((opt, i) => {
-    opt.classList.toggle("active", i === activeIndex);
-    opt.setAttribute("aria-selected", String(i === activeIndex));
-  });
-  searchInput.setAttribute("aria-activedescendant", options[activeIndex].id);
-  options[activeIndex].scrollIntoView({ block: "nearest" });
-}
-
-function renderResultsList(lessons: Lesson[], query: string, dateHeading?: string) {
-  resultsList.innerHTML = "";
+// Renders a fresh set of matches and drops any ticket that was open for a previous query.
+function showResults(lessons: Lesson[], query: string, dateHeading?: string) {
   clearTicket();
-  activeIndex = -1;
-
-  const heading = document.createElement("li");
-  heading.className = "results-list__date";
-  heading.setAttribute("role", "presentation");
-  heading.textContent = dateHeading ?? t().resultsCount(lessons.length);
-  resultsList.append(heading);
-
-  lessons.forEach((lesson, i) => {
-    const li = document.createElement("li");
-    li.className = "results-list__item";
-    li.id = `result-item-${i}`;
-    li.setAttribute("role", "option");
-    li.setAttribute("aria-selected", "false");
-
-    const course = document.createElement("span");
-    course.className = "results-list__course";
-    appendHighlighted(course, lesson.course, query);
-
-    const professors = document.createElement("span");
-    professors.className = "results-list__professors";
-    appendHighlighted(professors, lesson.professors.join(", "), query);
-
-    const time = document.createElement("span");
-    time.className = "results-list__time";
-    time.textContent = `${lesson.inizio}–${lesson.fine}`;
-
-    li.append(course, professors, time);
-    li.addEventListener("click", () => {
-      maybeRequestGyroPermission();
-      showTicket(lesson);
-    });
-    li.addEventListener("mouseenter", () => setActiveIndex(i));
-    resultsList.append(li);
-  });
-
-  resultsList.hidden = lessons.length === 0;
-  resultsList.classList.toggle("results-list--open", lessons.length > 0);
-  searchInput.setAttribute("aria-expanded", String(lessons.length > 0));
+  results.render(lessons, query, dateHeading);
 }
 
 function showNoResultsToday() {
@@ -216,7 +141,7 @@ async function searchNextLesson(query: string) {
     const matches = searchLessons(lessons, query);
     if (matches.length > 0) {
       hideMessage();
-      renderResultsList(matches, query, formatDateHeading(date));
+      showResults(matches, query, formatDateHeading(date));
       return;
     }
   }
@@ -246,12 +171,12 @@ function runSearch() {
   clearTicket();
   const query = currentQuery.trim();
   if (query.length < 2) {
-    closeResultsList();
+    results.close();
     hideMessage();
     return;
   }
   if (normalize(query) === EASTER_EGG_QUERY) {
-    closeResultsList();
+    results.close();
     hideMessage();
     showTicket(buildEasterEggLesson());
     return;
@@ -259,9 +184,9 @@ function runSearch() {
   const matches = searchLessons(lessonsByDate.get(todayDate) ?? [], query);
   if (matches.length > 0) {
     hideMessage();
-    renderResultsList(matches, query);
+    showResults(matches, query);
   } else {
-    closeResultsList();
+    results.close();
     showNoResultsToday();
   }
 }
@@ -294,41 +219,37 @@ searchClearBtn.addEventListener("click", () => {
   searchInput.value = "";
   currentQuery = "";
   searchClearBtn.hidden = true;
-  closeResultsList();
+  results.close();
   hideMessage();
   clearTicket();
   searchInput.focus();
 });
 
 searchInput.addEventListener("keydown", (e) => {
-  if (resultsList.hidden || getOptionEls().length === 0) return;
+  if (resultsList.hidden || !results.hasOptions()) return;
   if (e.key === "ArrowDown") {
     e.preventDefault();
-    setActiveIndex(activeIndex + 1);
+    results.moveActive(1);
   } else if (e.key === "ArrowUp") {
     e.preventDefault();
-    setActiveIndex(activeIndex - 1);
+    results.moveActive(-1);
   } else if (e.key === "Enter") {
     e.preventDefault();
-    const options = getOptionEls();
-    options[activeIndex >= 0 ? activeIndex : 0].click();
+    results.selectActive();
   } else if (e.key === "Escape") {
-    closeResultsList();
+    results.close();
   }
 });
 
 document.addEventListener("click", (e) => {
   if (!(e.target instanceof Node)) return;
   if (!resultsList.contains(e.target) && e.target !== searchInput) {
-    closeResultsList();
+    results.close();
   }
 });
 
 searchInput.addEventListener("focus", () => {
-  if (getOptionEls().length > 0) {
-    resultsList.hidden = false;
-    resultsList.classList.add("results-list--open");
-  }
+  results.reopenIfPopulated();
 });
 
 reloadBtn.addEventListener("click", async () => {
