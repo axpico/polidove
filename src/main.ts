@@ -4,8 +4,10 @@ import "./style.css";
 import { fetchAvailableDates, getOccupationsForDate } from "./api.ts";
 import { flattenLessons, formatDate } from "./lessons.ts";
 import type { Lesson } from "./lessons.ts";
-import { searchLessons, matchRanges, mergeRanges } from "./search.ts";
+import { searchLessons, matchRanges, mergeRanges, normalize } from "./search.ts";
 import { renderTicket, updateTicketStatus } from "./ticket.ts";
+import { maybeRequestGyroPermission } from "./tilt.ts";
+import { attachKonamiEgg } from "./konami.ts";
 import { decodeShareParams } from "./share.ts";
 import { getLang, setLang, t } from "./i18n.ts";
 
@@ -19,6 +21,17 @@ const langToggleBtn = document.querySelector<HTMLButtonElement>("#lang-toggle-bt
 const introTagline = document.querySelector<HTMLParagraphElement>(".intro p")!;
 const metaDescription = document.querySelector<HTMLMetaElement>('meta[name="description"]')!;
 const updatedAtEl = document.querySelector<HTMLParagraphElement>("#updated-at")!;
+
+const bootSplash = document.querySelector<HTMLDivElement>("#boot-splash");
+if (bootSplash) {
+  if (matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    bootSplash.remove();
+  } else {
+    bootSplash.addEventListener("animationend", () => bootSplash.remove(), { once: true });
+  }
+}
+
+attachKonamiEgg();
 
 let availableDates: string[] = [];
 let todayDate = "";
@@ -113,6 +126,7 @@ function appendHighlighted(el: HTMLElement, text: string, query: string) {
 
 function closeResultsList() {
   resultsList.hidden = true;
+  resultsList.classList.remove("results-list--open");
   resultsList.innerHTML = "";
   activeIndex = -1;
   searchInput.setAttribute("aria-expanded", "false");
@@ -140,13 +154,11 @@ function renderResultsList(lessons: Lesson[], query: string, dateHeading?: strin
   clearTicket();
   activeIndex = -1;
 
-  if (dateHeading) {
-    const heading = document.createElement("li");
-    heading.className = "results-list__date";
-    heading.setAttribute("role", "presentation");
-    heading.textContent = dateHeading;
-    resultsList.append(heading);
-  }
+  const heading = document.createElement("li");
+  heading.className = "results-list__date";
+  heading.setAttribute("role", "presentation");
+  heading.textContent = dateHeading ?? t().resultsCount(lessons.length);
+  resultsList.append(heading);
 
   lessons.forEach((lesson, i) => {
     const li = document.createElement("li");
@@ -168,12 +180,16 @@ function renderResultsList(lessons: Lesson[], query: string, dateHeading?: strin
     time.textContent = `${lesson.inizio}–${lesson.fine}`;
 
     li.append(course, professors, time);
-    li.addEventListener("click", () => showTicket(lesson));
+    li.addEventListener("click", () => {
+      maybeRequestGyroPermission();
+      showTicket(lesson);
+    });
     li.addEventListener("mouseenter", () => setActiveIndex(i));
     resultsList.append(li);
   });
 
   resultsList.hidden = lessons.length === 0;
+  resultsList.classList.toggle("results-list--open", lessons.length > 0);
   searchInput.setAttribute("aria-expanded", String(lessons.length > 0));
 }
 
@@ -207,12 +223,37 @@ async function searchNextLesson(query: string) {
   showMessage(t().noResultsWeek(query));
 }
 
+// Hidden easter egg: searching the app's own name shows a joke boarding pass.
+const EASTER_EGG_QUERY = "polidove";
+
+function buildEasterEggLesson(): Lesson {
+  return {
+    idrichiesta: -1,
+    course: t().easterEggCourse,
+    code: 42,
+    professors: [t().easterEggProfessor],
+    campusName: t().easterEggCampus,
+    buildingName: t().easterEggBuilding,
+    buildingAddress: t().easterEggAddress,
+    roomName: "42",
+    date: todayDate,
+    inizio: "00:00",
+    fine: "23:59",
+  };
+}
+
 function runSearch() {
   clearTicket();
   const query = currentQuery.trim();
   if (query.length < 2) {
     closeResultsList();
     hideMessage();
+    return;
+  }
+  if (normalize(query) === EASTER_EGG_QUERY) {
+    closeResultsList();
+    hideMessage();
+    showTicket(buildEasterEggLesson());
     return;
   }
   const matches = searchLessons(lessonsByDate.get(todayDate) ?? [], query);
@@ -284,7 +325,10 @@ document.addEventListener("click", (e) => {
 });
 
 searchInput.addEventListener("focus", () => {
-  if (getOptionEls().length > 0) resultsList.hidden = false;
+  if (getOptionEls().length > 0) {
+    resultsList.hidden = false;
+    resultsList.classList.add("results-list--open");
+  }
 });
 
 reloadBtn.addEventListener("click", async () => {

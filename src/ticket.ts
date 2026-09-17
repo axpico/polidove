@@ -1,11 +1,12 @@
 // Builds the boarding-pass-styled ticket DOM for a lesson: main stub (course/gate/time
-// fields, editable owner name) plus a tear-off stub with a shareable QR code.
+// fields, editable owner name) plus a stub with a shareable QR code.
 import type { Lesson } from "./lessons.ts";
 import { formatDate } from "./lessons.ts";
 import { computeStatus } from "./status.ts";
 import { encodeShareUrl } from "./share.ts";
 import { buildQrModules } from "./qr.ts";
 import { getPassengerName, setPassengerName } from "./passenger.ts";
+import { attachTilt } from "./tilt.ts";
 import { t } from "./i18n.ts";
 
 const SVG_NS = "http://www.w3.org/2000/svg";
@@ -31,7 +32,7 @@ function buildQrSvg(text: string): SVGSVGElement {
   return svg;
 }
 
-function buildBrandMark(): SVGSVGElement {
+export function buildBrandMark(): SVGSVGElement {
   const svg = document.createElementNS(SVG_NS, "svg");
   svg.setAttribute("viewBox", "0 0 32 32");
   svg.classList.add("ticket-brand-mark");
@@ -247,8 +248,12 @@ export function renderTicket(container: HTMLElement, lesson: Lesson) {
 
   stub.append(field(t().fieldFlight, String(lesson.code)), field(t().fieldSeat, lesson.roomName), qrBtn, shareHint);
 
-  ticket.append(main, stub);
+  const sheen = document.createElement("div");
+  sheen.className = "ticket-sheen";
+
+  ticket.append(main, stub, sheen);
   container.append(ticket);
+  attachTilt(ticket);
 
   requestAnimationFrame(() => ticket.classList.add("ticket--issued"));
 }

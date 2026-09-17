@@ -23,6 +23,8 @@ function haystackWords(lesson: Lesson): string[] {
     ...normalize(lesson.course).split(/\s+/),
     normalize(String(lesson.code)),
     ...lesson.professors.flatMap((p) => normalize(p).split(/\s+/)),
+    ...normalize(lesson.roomName).split(/\s+/),
+    ...normalize(lesson.buildingName).split(/\s+/),
   ];
 }
 

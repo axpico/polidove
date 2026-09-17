@@ -29,7 +29,9 @@ body {
   margin: 0;
   min-height: 100vh;
   min-width: 320px;
-  background: radial-gradient(ellipse at top, var(--bg-accent), var(--bg));
+  background:
+    radial-gradient(ellipse at 50% 30%, rgba(255, 255, 255, 0.05), transparent 60%),
+    radial-gradient(ellipse at top, var(--bg-accent), var(--bg));
   color: var(--paper);
   display: flex;
   justify-content: center;
@@ -43,6 +45,23 @@ body::before {
   opacity: 0.05;
   mix-blend-mode: overlay;
   pointer-events: none;
+  z-index: 1;
+}
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-image:
+    linear-gradient(rgba(245, 242, 234, 0.07) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(245, 242, 234, 0.07) 1px, transparent 1px);
+  background-size: 40px 40px;
+  transform: perspective(500px) rotateX(60deg) scale(2);
+  transform-origin: center bottom;
+  mask-image: radial-gradient(ellipse at center, black, transparent 70%);
+  -webkit-mask-image: radial-gradient(ellipse at center, black, transparent 70%);
+  opacity: 0.5;
 }
 
 #app {
@@ -50,6 +69,45 @@ body::before {
   max-width: 560px;
   padding: 2.5rem 1.25rem 4rem;
   position: relative;
+  z-index: 1;
+}
+
+#boot-splash {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+  background: var(--bg);
+  color: var(--accent);
+  pointer-events: none;
+  animation: boot-fade 1s ease forwards;
+}
+.boot-splash-mark {
+  width: 2rem;
+  height: 2rem;
+}
+.boot-splash-word {
+  font-weight: 700;
+  font-size: 1.1rem;
+  letter-spacing: 0.1em;
+  color: var(--paper);
+}
+@keyframes boot-fade {
+  0%,
+  55% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  #boot-splash {
+    display: none;
+  }
 }
 
 #reload-btn,
@@ -67,11 +125,16 @@ body::before {
   background: transparent;
   color: var(--paper);
   cursor: pointer;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.15),
+    inset 0 -1px 2px rgba(0, 0, 0, 0.3),
+    0 2px 4px rgba(0, 0, 0, 0.3);
   transition:
     transform 0.2s ease,
     background 0.15s ease,
     border-color 0.15s ease,
-    opacity 0.2s ease;
+    opacity 0.2s ease,
+    box-shadow 0.15s ease;
 }
 #reload-btn:hover,
 #lang-toggle-btn:hover {
@@ -81,6 +144,7 @@ body::before {
 #reload-btn:active,
 #lang-toggle-btn:active {
   transform: scale(0.92);
+  box-shadow: inset 0 1px 4px rgba(0, 0, 0, 0.3);
 }
 #reload-btn:focus-visible,
 #lang-toggle-btn:focus-visible {
@@ -128,6 +192,10 @@ body::before {
   font-size: 1.75rem;
   letter-spacing: 0.04em;
   margin: 0 0 0.25rem;
+  text-shadow:
+    0 1px 0 rgba(0, 0, 0, 0.4),
+    0 2px 0 rgba(0, 0, 0, 0.25),
+    0 4px 8px rgba(0, 0, 0, 0.5);
 }
 .intro p {
   margin: 0;
@@ -150,7 +218,7 @@ body::before {
 
 #search-input {
   width: 100%;
-  padding: 0.9rem 2.5rem 0.9rem 1rem;
+  padding: 0.9rem 2.5rem 0.9rem 2.5rem;
   font-size: 1.1rem;
   border-radius: 0.75rem;
   border: 1px solid rgba(245, 242, 234, 0.2);
@@ -158,6 +226,11 @@ body::before {
   color: var(--paper);
   appearance: none;
   -webkit-appearance: none;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    0 1px 1px rgba(0, 0, 0, 0.2),
+    0 6px 16px rgba(0, 0, 0, 0.35);
+  transition: box-shadow 0.15s ease;
 }
 #search-input::-webkit-search-cancel-button {
   -webkit-appearance: none;
@@ -166,9 +239,21 @@ body::before {
 #search-input:focus {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.25);
 }
 #search-input::placeholder {
   color: var(--text-faint);
+}
+
+.search-icon {
+  position: absolute;
+  top: 50%;
+  left: 0.85rem;
+  transform: translateY(-50%);
+  width: 1.1rem;
+  height: 1.1rem;
+  color: var(--text-faint);
+  pointer-events: none;
 }
 
 .search-clear-btn {
@@ -220,6 +305,23 @@ body::before {
   left: 0;
   right: 0;
   z-index: 10;
+  transform-origin: top center;
+  transform: perspective(600px) rotateX(-12deg);
+  opacity: 0;
+  transition:
+    transform 0.18s ease-out,
+    opacity 0.15s ease-out;
+}
+.results-list--open {
+  transform: perspective(600px) rotateX(0deg);
+  opacity: 1;
+}
+@media (prefers-reduced-motion: reduce) {
+  .results-list {
+    transition: none;
+    transform: none;
+    opacity: 1;
+  }
 }
 .results-list__date {
   padding: 0.5rem 1rem;
@@ -243,6 +345,10 @@ body::before {
 .results-list__item:hover,
 .results-list__item.active {
   background: rgba(255, 255, 255, 0.1);
+  box-shadow:
+    inset 3px 0 0 var(--accent),
+    0 2px 6px rgba(0, 0, 0, 0.25);
+  position: relative;
 }
 .results-list mark {
   background: rgba(201, 162, 39, 0.35);
@@ -309,9 +415,13 @@ body::before {
 
 #ticket-container {
   margin-top: 1.5rem;
+  perspective: 1200px;
 }
 
 .ticket {
+  --tilt-rx: 0deg;
+  --tilt-ry: 0deg;
+  --shadow-x: 0px;
   display: grid;
   grid-template-columns: 1fr auto;
   background: var(--paper);
@@ -322,11 +432,16 @@ body::before {
   box-shadow:
     0 1px 1px rgba(0, 0, 0, 0.15),
     0 8px 16px rgba(0, 0, 0, 0.25),
-    0 30px 50px rgba(0, 0, 0, 0.4);
+    var(--shadow-x) 30px 50px rgba(0, 0, 0, 0.4);
   opacity: 0;
-  transform: translateY(24px) scale(0.98) rotate(0deg);
+  transform: translateY(24px) scale(0.98) rotate(0deg) rotateX(var(--tilt-rx)) rotateY(var(--tilt-ry));
   transition:
     transform 0.4s cubic-bezier(0.2, 0.8, 0.2, 1),
+    opacity 0.4s ease;
+}
+.ticket--tilting {
+  transition:
+    transform 0.08s linear,
     opacity 0.4s ease;
 }
 .ticket::after {
@@ -338,9 +453,21 @@ body::before {
   mix-blend-mode: multiply;
   pointer-events: none;
 }
+.ticket-sheen {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(circle at var(--sheen-x, 50%) var(--sheen-y, 0%), rgba(255, 255, 255, 0.35), transparent 45%);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  mix-blend-mode: soft-light;
+}
+.ticket--tilting .ticket-sheen {
+  opacity: 1;
+}
 .ticket--issued {
   opacity: 1;
-  transform: translateY(0) scale(1) rotate(-0.6deg);
+  transform: translateY(0) scale(1) rotate(-0.6deg) rotateX(var(--tilt-rx)) rotateY(var(--tilt-ry));
 }
 .ticket--issued .ticket-stub {
   animation: stub-detach 0.35s ease 0.4s backwards;
@@ -522,6 +649,9 @@ body::before {
   font-size: 0.65rem;
   letter-spacing: 0.08em;
   color: var(--ink-dim);
+  text-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.5),
+    0 -1px 0 rgba(0, 0, 0, 0.15);
 }
 .ticket-value {
   font-size: 1rem;
@@ -585,7 +715,6 @@ body::before {
 
 .ticket-qr-btn {
   margin-top: auto;
-  margin-left: auto;
   padding: 0.4rem;
   width: 5.5rem;
   aspect-ratio: 1;
@@ -602,6 +731,7 @@ body::before {
 }
 .ticket-qr-btn:active {
   transform: scale(0.96);
+  box-shadow: inset 0 1px 4px rgba(0, 0, 0, 0.3);
 }
 .ticket-qr-svg {
   width: 100%;
@@ -644,6 +774,7 @@ body::before {
   .ticket-qr-btn {
     width: 3.5rem;
     flex-shrink: 0;
+    margin-left: auto;
   }
   .ticket-qr-hint {
     display: none;
@@ -654,5 +785,22 @@ body::before {
   .ticket-field--wide {
     grid-column: 1 / -1;
     order: -1;
+  }
+}
+
+.konami-plane {
+  position: fixed;
+  top: -2rem;
+  width: 1.5rem;
+  height: 1.5rem;
+  color: var(--accent);
+  pointer-events: none;
+  z-index: 100;
+  animation: konami-fall 2.2s ease-in forwards;
+}
+@keyframes konami-fall {
+  to {
+    transform: translate(var(--drift, 0px), 110vh) rotate(360deg);
+    opacity: 0.3;
   }
 }

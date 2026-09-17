@@ -49,6 +49,8 @@ assert.strictEqual(searchLessons(lessons, "f").length, 0, "below min query lengt
 assert.strictEqual(searchLessons(lessons, "verzini").length, 1, "should match by professor");
 assert.strictEqual(searchLessons(lessons, "95958").length, 1, "should match by course code");
 assert.strictEqual(searchLessons(lessons, "ponti").length, 1, "should match professor substring");
+assert.strictEqual(searchLessons(lessons, "2.2")[0]?.course, "BASI DI DATI", "should match by room number");
+assert.strictEqual(searchLessons(lessons, "b3")[0]?.course, "BASI DI DATI", "should match by building name");
 assert.strictEqual(searchLessons(lessons, "zzz").length, 0, "should not match unrelated query");
 
 // multi-word query: every token must match somewhere

@@ -9,11 +9,17 @@ with campus, building, room, and time — plus a QR code to share it.
 
 ## Features
 
-- **Fuzzy search** by professor, course name, or course code, accent-insensitive
-  (`peru` matches `Perù`), ranked whole-word > prefix > substring.
+- **Fuzzy search** by professor, course name, course code, room, or building,
+  accent-insensitive (`peru` matches `Perù`), ranked whole-word > prefix >
+  substring, with a result count and a departure-board-style flip-open
+  dropdown.
 - **Boarding-pass ticket** with a live status badge (`BOARDING` → `IN FLIGHT` →
   `LANDED`) that updates itself every 30s, plus a countdown once a lesson is
   about to start.
+- **3D tilt**: the ticket tilts toward the pointer (or the phone's gyroscope on
+  touch, after a tap-triggered permission prompt on iOS) with a light sheen
+  and a shadow that reacts to the tilt — pure CSS custom properties + vanilla
+  JS, no library. Respects `prefers-reduced-motion` throughout.
 - **"Find the next lesson"** fallback when today has no match — walks forward
   through the next available dates.
 - **Shareable links** (`?d=<date>&r=<id>`) with an on-ticket QR code, so a
@@ -22,6 +28,8 @@ with campus, building, room, and time — plus a QR code to share it.
   to `localStorage`.
 - Manual refresh button to re-pull occupancy data for whatever dates are
   currently loaded.
+- A boot-splash animation on load, plus a couple of hidden easter eggs (try
+  searching for the app's own name, and the classic Konami code).
 
 ## Tech stack
 
@@ -39,14 +47,14 @@ npm run dev       # start the Vite dev server
 
 ## Scripts
 
-| Command          | Does                                                  |
-| ---------------- | ------------------------------------------------------ |
-| `npm run dev`     | Start the Vite dev server with HMR                     |
-| `npm run build`   | Type-check (`tsc`) then produce a production build     |
-| `npm run preview` | Preview the production build locally                   |
+| Command           | Does                                                                       |
+| ----------------- | -------------------------------------------------------------------------- |
+| `npm run dev`     | Start the Vite dev server with HMR                                         |
+| `npm run build`   | Type-check (`tsc`) then produce a production build                         |
+| `npm run preview` | Preview the production build locally                                       |
 | `npm run test`    | Run all `*.selfcheck.ts` files under `src/` via Node's built-in TS support |
-| `npm run lint`    | ESLint + Prettier check                                 |
-| `npm run format`  | Prettier write                                          |
+| `npm run lint`    | ESLint + Prettier check                                                    |
+| `npm run format`  | Prettier write                                                             |
 
 Tests are plain `node:assert` scripts, no test framework — run individually
 with `node src/<name>.selfcheck.ts` if you just want one.
@@ -60,6 +68,8 @@ src/
   search.ts            Tokenized fuzzy search + match-highlight range math
   status.ts            Lesson timing -> boarding/flying/landed + countdown
   ticket.ts            Builds the boarding-pass DOM (ticket, QR stub, owner row)
+  tilt.ts              Pointer/gyroscope 3D tilt + sheen for the ticket card
+  konami.ts            Konami-code easter egg (falling paper-plane shower)
   share.ts             Encodes/decodes the ?d=&r= shareable-link params
   qr.ts                Text -> QR module grid (via qrcode-generator)
   i18n.ts               it/en dictionary + language state
